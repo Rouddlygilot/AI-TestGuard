@@ -1,0 +1,8 @@
+﻿Indicateur,Valeur,Unité
+Temps moyen d'inférence individuel,8.638597699871752,ms
+Latence P95,11.538800010748671,ms
+Latence P99,12.154609001008794,ms
+Taille du modèle,0.0035142898559570312,Mo
+Mémoire avant traitement,81.109375,Mo
+Mémoire après traitement,81.84765625,Mo
+Pic mémoire observé,83.99609375,Mo

@@ -1,0 +1,38 @@
+# Environnements virtuels
+.venv/
+.venvtest/
+venv/
+env/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Secrets et configurations locales
+.env
+.env.*
+!.env.example
+
+# Données sensibles ou volumineuses
+data/*.csv
+data/*.xlsx
+data/*.db
+
+# Modèles générés
+reports/*.joblib
+reports/*.pkl
+
+# Fichiers temporaires
+*.log
+*.tmp

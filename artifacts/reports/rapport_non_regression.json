@@ -1,0 +1,70 @@
+{
+    "nom_projet": "AI-TestGuard",
+    "date_generation": "2026-11-20T21:13:42.718604",
+    "type_rapport": "Rapport de non-régression",
+    "statut_global": "SUCCÈS - AUCUNE RÉGRESSION DÉTECTÉE",
+    "resume": {
+        "nombre_metriques_comparees": 8,
+        "ameliorations": 0,
+        "regressions": 0,
+        "metriques_stables": 8
+    },
+    "comparaison_performances": [
+        {
+            "Métrique": "Accuracy",
+            "Baseline": 0.9983380538845065,
+            "Modèle actuel": 0.9983380538845065,
+            "Écart": 0.0,
+            "Statut": "Stable"
+        },
+        {
+            "Métrique": "Precision",
+            "Baseline": 0.5126050420168067,
+            "Modèle actuel": 0.5126050420168067,
+            "Écart": 0.0,
+            "Statut": "Stable"
+        },
+        {
+            "Métrique": "Recall",
+            "Baseline": 0.8243243243243243,
+            "Modèle actuel": 0.8243243243243243,
+            "Écart": 0.0,
+            "Statut": "Stable"
+        },
+        {
+            "Métrique": "F1-score",
+            "Baseline": 0.6321243523316062,
+            "Modèle actuel": 0.6321243523316062,
+            "Écart": 0.0,
+            "Statut": "Stable"
+        },
+        {
+            "Métrique": "ROC-AUC",
+            "Baseline": 0.9684146535449089,
+            "Modèle actuel": 0.9684146535449089,
+            "Écart": 0.0,
+            "Statut": "Stable"
+        },
+        {
+            "Métrique": "PR-AUC (AP)",
+            "Baseline": 0.6275251631550335,
+            "Modèle actuel": 0.6275251631550335,
+            "Écart": 0.0,
+            "Statut": "Stable"
+        },
+        {
+            "Métrique": "FPR",
+            "Baseline": 0.0013600018758646564,
+            "Modèle actuel": 0.0013600018758646564,
+            "Écart": 0.0,
+            "Statut": "Stable"
+        },
+        {
+            "Métrique": "FNR",
+            "Baseline": 0.17567567567567569,
+            "Modèle actuel": 0.17567567567567569,
+            "Écart": 0.0,
+            "Statut": "Stable"
+        }
+    ]
+}

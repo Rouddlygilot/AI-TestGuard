@@ -1,0 +1,36 @@
+{
+    "nom_modele": "AI-TestGuard - Baseline",
+    "parametres_modele": {
+        "nom_modele": "AI-TestGuard - Baseline",
+        "type": "Modèle de détection de fraude"
+    },
+    "versions_bibliotheques": {
+        "python": "3.14.10 (tags/v3.14.10:b703b2c, Oct 25 2026, 17:36:52) [MSC v.1944 64 bit (AMD64)]",
+        "numpy": "2.5.4",
+        "pandas": "3.1.1",
+        "scikit_learn": "1.9.1"
+    },
+    "graines_aleatoires": {
+        "random_state": 42
+    },
+    "jeu_donnees": {
+        "nombre_observations_validation": 42721,
+        "nombre_predictions": 42721,
+        "nombre_variables": 30
+    },
+    "seuil_decision": 0.98,
+    "metriques_validation": {
+        "Accuracy": 0.9983380538845065,
+        "Precision": 0.5126050420168067,
+        "Recall": 0.8243243243243243,
+        "F1-score": 0.6321243523316062,
+        "ROC-AUC": 0.9684146535449089,
+        "PR-AUC (AP)": 0.6275251631550335,
+        "FPR": 0.0013600018758646564,
+        "FNR": 0.17567567567567569,
+        "TN": 42589.0,
+        "FP": 58.0,
+        "FN": 13.0,
+        "TP": 61.0
+    }
+}

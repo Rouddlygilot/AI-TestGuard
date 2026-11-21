@@ -1,0 +1,13 @@
+{
+    "Systeme": "Windows",
+    "Version_systeme": "10.0.26300",
+    "Architecture": "AMD64",
+    "Processeur": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "Nombre_coeurs_logiques": 4,
+    "RAM_totale_Go": 7.8,
+    "Python": "3.14.10",
+    "NumPy": "2.5.4",
+    "Pandas": "3.1.1",
+    "Scikit_learn": "1.9.1",
+    "Processus_PID": 18588
+}

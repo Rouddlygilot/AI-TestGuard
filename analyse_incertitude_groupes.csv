@@ -1,0 +1,4 @@
+﻿Groupe,Effectif,Nombre_fraudes,Nombre_non_fraudes,Recall,Recall_IC95_inf,Recall_IC95_sup,FPR,FPR_IC95_inf,FPR_IC95_sup
+Petit montant,14691,39,14652,0.9231,0.7968,0.9735,0.0014,0.0009,0.0022
+Montant moyen,13990,9,13981,0.8889,0.565,0.9801,0.0004,0.0002,0.0008
+Montant élevé,14041,26,14015,0.6923,0.5001,0.835,0.0009,0.0005,0.0015
