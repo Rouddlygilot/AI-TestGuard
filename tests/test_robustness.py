@@ -12,7 +12,6 @@ from app.training import (
     train_model,
 )
 
-
 # ==========================================================
 # 1. CREATION D'UN JEU DE DONNEES POUR LES TESTS
 # ==========================================================
