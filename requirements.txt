@@ -120,3 +120,24 @@ webencodings==0.6.1
 websocket-client==1.9.2
 widgetsnbextension==4.0.16
 wrapt==2.6.0.dev1
+
+from pathlib import Path
+
+requirements = """
+numpy
+pandas
+scikit-learn
+joblib
+pytest
+pytest-cov
+ruff
+psutil
+"""
+
+Path("requirements.txt").write_text(
+    requirements.strip() + "\n",
+    encoding="utf-8"
+)
+
+print("Nouveau fichier requirements.txt créé.")
+print(Path("requirements.txt").read_text(encoding="utf-8"))
