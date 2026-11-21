@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -13,16 +12,18 @@ from app.training import (
     train_model,
 )
 
+
 # ==========================================================
 # 1. CREATION D'UN JEU DE DONNEES POUR LES TESTS
 # ==========================================================
 
 def create_test_data(n=200):
+    """Crée un jeu de données artificiel pour les tests."""
 
     rng = np.random.default_rng(42)
 
     data = {
-        "Time": rng.uniform(0, 100000, n)
+        "Time": rng.uniform(0, 100000, n),
     }
 
     for i in range(1, 29):
@@ -40,12 +41,13 @@ def create_test_data(n=200):
 
 @pytest.fixture
 def trained_artifact(tmp_path):
+    """Prépare et sauvegarde un modèle pour les tests."""
 
     df = create_test_data()
 
     validate_data(df)
 
-    X_train, X_valid, X_test, y_train, y_valid, y_test = split_data(df)
+    X_train, X_valid, X_test, y_train, y_valid, _ = split_data(df)
 
     pipeline = build_pipeline()
 
@@ -67,15 +69,12 @@ def trained_artifact(tmp_path):
 # ==========================================================
 
 def test_missing_values_rejected(trained_artifact):
-
     artifact, X_test = trained_artifact
 
     X_invalid = X_test.copy()
-
     X_invalid.iloc[0, 0] = np.nan
 
     with pytest.raises(ValueError):
-
         predict_transactions(artifact, X_invalid)
 
 
@@ -84,15 +83,12 @@ def test_missing_values_rejected(trained_artifact):
 # ==========================================================
 
 def test_infinite_values_rejected(trained_artifact):
-
     artifact, X_test = trained_artifact
 
     X_invalid = X_test.copy()
-
     X_invalid.iloc[0, 0] = np.inf
 
     with pytest.raises(ValueError):
-
         predict_transactions(artifact, X_invalid)
 
 
@@ -101,17 +97,15 @@ def test_infinite_values_rejected(trained_artifact):
 # ==========================================================
 
 def test_non_numeric_values_rejected(trained_artifact):
-
     artifact, X_test = trained_artifact
 
     X_invalid = X_test.copy()
 
     X_invalid["Amount"] = X_invalid["Amount"].astype(object)
 
-    X_invalid.iloc[0, X_invalid.columns.get_loc("Amount")] = "inconnu"
+    X_invalid.loc[X_invalid.index[0], "Amount"] = "inconnu"
 
     with pytest.raises(TypeError):
-
         predict_transactions(artifact, X_invalid)
 
 
@@ -120,23 +114,22 @@ def test_non_numeric_values_rejected(trained_artifact):
 # ==========================================================
 
 def test_extreme_amount_is_processed(trained_artifact):
-
     artifact, X_test = trained_artifact
 
     X_extreme = X_test.copy()
 
-    # Montant très élevé, mais toujours numérique et fini
-    X_extreme.iloc[0, X_extreme.columns.get_loc("Amount")] = 1_000_000_000
+    # Montant très élevé, mais toujours numérique et fini.
+    X_extreme.loc[X_extreme.index[0], "Amount"] = 1_000_000_000
 
     predictions, probabilities = predict_transactions(
         artifact,
-        X_extreme
+        X_extreme,
     )
 
     assert len(predictions) == len(X_extreme)
+    assert len(probabilities) == len(X_extreme)
 
     assert np.isfinite(probabilities).all()
-
     assert np.all(probabilities >= 0)
     assert np.all(probabilities <= 1)
 
@@ -148,41 +141,36 @@ def test_extreme_amount_is_processed(trained_artifact):
 # ==========================================================
 
 def test_limited_perturbation(trained_artifact):
-
     artifact, X_test = trained_artifact
 
-    # Probabilités sur les données originales
-    _, probabilities_before = predict_transactions(
+    # Prédictions et probabilités sur les données originales.
+    predictions_before, probabilities_before = predict_transactions(
         artifact,
-        X_test
+        X_test,
     )
 
-    # Petite perturbation du montant : augmentation de 1 %
+    # Petite perturbation du montant : augmentation de 1 %.
     X_perturbed = X_test.copy()
-
     X_perturbed["Amount"] = X_perturbed["Amount"] * 1.01
 
     predictions_after, probabilities_after = predict_transactions(
         artifact,
-        X_perturbed
+        X_perturbed,
     )
 
-    # Mesurer la variation des probabilités
+    # Mesurer la variation des probabilités.
     variation = np.abs(
         probabilities_after - probabilities_before
     )
 
-    # Mesurer le nombre de changements de classe
-    _, predictions_before = predict_transactions(
-        artifact,
-        X_test
-    )
-
+    # Mesurer le nombre de changements de classe.
     changed_classes = np.sum(
         predictions_before != predictions_after
     )
 
     assert np.isfinite(probabilities_after).all()
+    assert np.all(probabilities_after >= 0)
+    assert np.all(probabilities_after <= 1)
 
     print("\nPerturbation de Amount : +1 %")
     print("Variation moyenne des probabilités :", variation.mean())
@@ -195,27 +183,26 @@ def test_limited_perturbation(trained_artifact):
 # ==========================================================
 
 def test_distribution_shift(trained_artifact):
-
     artifact, X_test = trained_artifact
 
-    # Probabilités sur les données originales
+    # Probabilités sur les données originales.
     _, probabilities_before = predict_transactions(
         artifact,
-        X_test
+        X_test,
     )
 
-    # Créer un décalage de distribution
+    # Créer un décalage de distribution.
     X_shifted = X_test.copy()
 
-    # Décalage temporel d'une journée
+    # Décalage temporel d'une journée.
     X_shifted["Time"] = X_shifted["Time"] + 86400
 
-    # Augmentation de 100 % des montants
+    # Augmentation de 100 % des montants.
     X_shifted["Amount"] = X_shifted["Amount"] * 2
 
     predictions, probabilities_after = predict_transactions(
         artifact,
-        X_shifted
+        X_shifted,
     )
 
     variation = np.abs(
@@ -223,9 +210,10 @@ def test_distribution_shift(trained_artifact):
     )
 
     assert np.isfinite(probabilities_after).all()
-
     assert np.all(probabilities_after >= 0)
     assert np.all(probabilities_after <= 1)
+
+    assert len(predictions) == len(X_shifted)
 
     print("\nTest de décalage de distribution")
     print("Variation moyenne des probabilités :", variation.mean())
@@ -238,14 +226,12 @@ def test_distribution_shift(trained_artifact):
 # ==========================================================
 
 def test_invalid_schema_rejected(trained_artifact):
-
     artifact, X_test = trained_artifact
 
-    # Supprimer une colonne obligatoire
+    # Supprimer une colonne obligatoire.
     X_invalid = X_test.drop(columns=["V1"])
 
     with pytest.raises(ValueError):
-
         predict_transactions(artifact, X_invalid)
 
 
@@ -254,18 +240,18 @@ def test_invalid_schema_rejected(trained_artifact):
 # ==========================================================
 
 def test_prediction_probabilities_are_valid(trained_artifact):
-
     artifact, X_test = trained_artifact
 
     predictions, probabilities = predict_transactions(
         artifact,
-        X_test
+        X_test,
     )
 
+    assert len(predictions) == len(X_test)
+    assert len(probabilities) == len(X_test)
+
     assert np.isfinite(probabilities).all()
-
     assert np.all(probabilities >= 0)
-
     assert np.all(probabilities <= 1)
 
-    assert len(predictions) == len(X_test)
+    assert set(np.unique(predictions)).issubset({0, 1})
