@@ -1,6 +1,4 @@
-from pathlib import Path
-
-requirements = """numpy
+numpy
 pandas
 scikit-learn
 joblib
@@ -8,11 +6,3 @@ pytest
 pytest-cov
 ruff
 psutil
-"""
-
-fichier = Path("requirements.txt")
-
-fichier.write_text(requirements, encoding="utf-8")
-
-print("Nouveau contenu de requirements.txt :")
-print(fichier.read_text(encoding="utf-8"))
