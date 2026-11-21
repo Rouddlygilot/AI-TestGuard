@@ -1,7 +1,15 @@
 import numpy as np
 import pandas as pd
-from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score,
-    average_precision_score, confusion_matrix)
+from sklearn.metrics import (
+    accuracy_score,
+    average_precision_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+
 
 def evaluate_predictions(y_true, predictions, probabilities):
     if len(y_true) == 0:

@@ -1,12 +1,18 @@
+
 import numpy as np
 import pandas as pd
 import pytest
-from pathlib import Path
-from sklearn.preprocessing import StandardScaler
-from app.preprocessing import validate_data
-from app.training import (split_data, build_pipeline, train_model, choose_threshold, save_pipeline)
-from app.prediction import (load_pipeline, predict_transactions)
+
 from app.evaluation import evaluate_predictions
+from app.prediction import load_pipeline, predict_transactions
+from app.training import (
+    build_pipeline,
+    choose_threshold,
+    save_pipeline,
+    split_data,
+    train_model,
+)
+
 
 def create_test_data(n=200):
     rng = np.random.default_rng(42)

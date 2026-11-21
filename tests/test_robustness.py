@@ -3,16 +3,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from app.prediction import load_pipeline, predict_transactions
 from app.preprocessing import validate_data
 from app.training import (
-    split_data,
     build_pipeline,
-    train_model,
     choose_threshold,
-    save_pipeline
+    save_pipeline,
+    split_data,
+    train_model,
 )
-from app.prediction import load_pipeline, predict_transactions
-
 
 # ==========================================================
 # 1. CREATION D'UN JEU DE DONNEES POUR LES TESTS

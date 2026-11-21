@@ -1,8 +1,10 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
 from sklearn.preprocessing import StandardScaler
-from app.preprocessing import (REQUIRED_COLUMNS, validate_data, preprocess_data)
+
+from app.preprocessing import REQUIRED_COLUMNS, preprocess_data, validate_data
+
 
 # Création d'un echantillon de jeu de données valide pour les tests
 def create_valid_data(n=3):

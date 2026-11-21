@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-
 # Liste des colonnes attendues dans le jeu de données
 REQUIRED_COLUMNS = (
     ["Time"]
