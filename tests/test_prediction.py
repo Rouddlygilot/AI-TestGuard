@@ -60,6 +60,11 @@ def load_pipeline(filepath):
             "Les noms des colonnes doivent être des chaînes de caractères."
         )
 
+    if not expected_columns:
+        raise ValueError(
+            "La liste des colonnes attendues ne peut pas être vide."
+        )
+
     if len(set(expected_columns)) != len(expected_columns):
         raise ValueError(
             "La liste des colonnes attendues contient des doublons."
@@ -79,7 +84,9 @@ def load_pipeline(filepath):
             "Le seuil de décision doit être compris entre 0 et 1."
         )
 
-    if not hasattr(artifact["pipeline"], "predict_proba"):
+    pipeline = artifact["pipeline"]
+
+    if not callable(getattr(pipeline, "predict_proba", None)):
         raise TypeError(
             "Le pipeline doit posséder une méthode predict_proba."
         )
@@ -112,9 +119,11 @@ def predict_transactions(artifact, X):
 
     required_keys = {"pipeline", "threshold", "feature_columns"}
 
-    if not required_keys.issubset(artifact):
+    missing_keys = required_keys - artifact.keys()
+
+    if missing_keys:
         raise ValueError(
-            "Le dictionnaire du modèle ne contient pas tous les éléments requis."
+            f"Éléments manquants dans le modèle : {sorted(missing_keys)}"
         )
 
     if not isinstance(X, pd.DataFrame):
@@ -146,6 +155,11 @@ def predict_transactions(artifact, X):
             "Les noms des colonnes doivent être des chaînes de caractères."
         )
 
+    if not expected_columns:
+        raise ValueError(
+            "La liste des colonnes attendues ne peut pas être vide."
+        )
+
     if len(set(expected_columns)) != len(expected_columns):
         raise ValueError(
             "La liste des colonnes attendues contient des doublons."
@@ -163,7 +177,7 @@ def predict_transactions(artifact, X):
             "Le seuil de décision doit être compris entre 0 et 1."
         )
 
-    if not hasattr(pipeline, "predict_proba"):
+    if not callable(getattr(pipeline, "predict_proba", None)):
         raise TypeError(
             "Le pipeline doit posséder une méthode predict_proba."
         )
@@ -186,7 +200,7 @@ def predict_transactions(artifact, X):
             f"Colonnes supplémentaires : {extra_columns}"
         )
 
-    X = X[expected_columns].copy()
+    X = X.loc[:, expected_columns].copy()
 
     try:
         values = X.to_numpy(dtype=float)
@@ -201,7 +215,32 @@ def predict_transactions(artifact, X):
             "Les données contiennent des valeurs non finies."
         )
 
-    probabilities = pipeline.predict_proba(X)[:, 1]
+    probabilities = pipeline.predict_proba(X)
+
+    if not isinstance(probabilities, np.ndarray):
+        raise TypeError(
+            "Le modèle doit retourner un tableau NumPy."
+        )
+
+    if (
+        probabilities.ndim != 2
+        or probabilities.shape != (len(X), 2)
+    ):
+        raise ValueError(
+            "Le modèle doit retourner deux probabilités par transaction."
+        )
+
+    probabilities = probabilities[:, 1]
+
+    if not np.isfinite(probabilities).all():
+        raise ValueError(
+            "Le modèle retourne des probabilités non finies."
+        )
+
+    if not np.all((probabilities >= 0) & (probabilities <= 1)):
+        raise ValueError(
+            "Les probabilités doivent être comprises entre 0 et 1."
+        )
 
     predictions = (
         probabilities >= threshold
