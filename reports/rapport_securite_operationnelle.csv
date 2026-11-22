@@ -1,6 +1,6 @@
 ﻿Contrôle,Résultat,Observation
 Champ manquant,PASSÉ,Le champ manquant est rejeté.
-Champ supplémentaire,ÉCHEC,Le champ supplémentaire est accepté.
+Champ supplémentaire,PASSÉ,Le champ supplémentaire est rejeté.
 Type incorrect,PASSÉ,Le type incorrect est rejeté.
 Protection des journaux de démonstration,PASSÉ,Vérification limitée au journal de test.
 Recherche de secrets dans Git,PASSÉ,0 motif(s) suspect(s) détecté(s).

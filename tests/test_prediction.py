@@ -2,248 +2,524 @@
 import joblib
 import numpy as np
 import pandas as pd
+import pytest
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+from app.prediction import load_pipeline, predict_transactions
 
 
-def load_pipeline(filepath):
-    """
-    Charge le modèle sauvegardé depuis un fichier.
+# ============================================================
+# 1. FIXTURES : CRÉATION DU MODÈLE ET DES DONNÉES DE TEST
+# ============================================================
 
-    Args:
-        filepath: Chemin vers le fichier du modèle.
+@pytest.fixture
+def sample_data():
+    """Crée un petit jeu de données pour les tests."""
 
-    Returns:
-        Un dictionnaire contenant le pipeline, le seuil
-        de décision et les colonnes attendues.
+    X = pd.DataFrame({
+        "Time": [10, 20, 30, 40, 50, 60, 70, 80],
+        "V1": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+        "Amount": [100, 200, 150, 300, 250, 400, 350, 500]
+    })
 
-    Raises:
-        FileNotFoundError: Si le fichier est introuvable.
-        RuntimeError: Si le chargement du fichier échoue.
-        TypeError: Si le contenu ou ses éléments sont de types incorrects.
-        ValueError: Si des éléments obligatoires sont absents
-                    ou si le seuil est invalide.
-    """
-    try:
-        artifact = joblib.load(filepath)
+    y = pd.Series([0, 0, 0, 0, 1, 1, 1, 1])
 
-    except FileNotFoundError as error:
-        raise FileNotFoundError(
-            f"Le fichier du modèle est introuvable : {filepath}"
-        ) from error
-
-    except (OSError, EOFError, ImportError, AttributeError) as error:
-        raise RuntimeError(
-            f"Impossible de charger le modèle : {error}"
-        ) from error
-
-    if not isinstance(artifact, dict):
-        raise TypeError(
-            "Le fichier sauvegardé doit contenir un dictionnaire."
-        )
-
-    required_keys = {"pipeline", "threshold", "feature_columns"}
-    missing_keys = required_keys - artifact.keys()
-
-    if missing_keys:
-        raise ValueError(
-            f"Éléments manquants dans le fichier : {sorted(missing_keys)}"
-        )
-
-    expected_columns = artifact["feature_columns"]
-
-    if not isinstance(expected_columns, list):
-        raise TypeError(
-            "Les colonnes attendues doivent être fournies sous forme de liste."
-        )
-
-    if not all(isinstance(col, str) for col in expected_columns):
-        raise TypeError(
-            "Les noms des colonnes doivent être des chaînes de caractères."
-        )
-
-    if not expected_columns:
-        raise ValueError(
-            "La liste des colonnes attendues ne peut pas être vide."
-        )
-
-    if len(set(expected_columns)) != len(expected_columns):
-        raise ValueError(
-            "La liste des colonnes attendues contient des doublons."
-        )
-
-    threshold = artifact["threshold"]
-
-    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
-        raise TypeError(
-            "Le seuil de décision doit être numérique."
-        )
-
-    threshold = float(threshold)
-
-    if not np.isfinite(threshold) or not 0 <= threshold <= 1:
-        raise ValueError(
-            "Le seuil de décision doit être compris entre 0 et 1."
-        )
-
-    pipeline = artifact["pipeline"]
-
-    if not callable(getattr(pipeline, "predict_proba", None)):
-        raise TypeError(
-            "Le pipeline doit posséder une méthode predict_proba."
-        )
-
-    artifact["threshold"] = threshold
-
-    return artifact
+    return X, y
 
 
-def predict_transactions(artifact, X):
-    """
-    Prédit les transactions frauduleuses.
+@pytest.fixture
+def sample_pipeline(sample_data):
+    """Construit et entraîne un pipeline de test."""
 
-    Args:
-        artifact: Dictionnaire contenant le pipeline et le seuil.
-        X: DataFrame pandas contenant les variables explicatives.
+    X, y = sample_data
 
-    Returns:
-        predictions: Classes prédites (0 ou 1).
-        probabilities: Probabilités de fraude.
+    pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", LogisticRegression(random_state=42))
+    ])
 
-    Raises:
-        TypeError: Si les types des données sont incorrects.
-        ValueError: Si les données sont invalides.
-    """
-    if not isinstance(artifact, dict):
-        raise TypeError(
-            "Le modèle sauvegardé doit être un dictionnaire."
-        )
+    pipeline.fit(X, y)
 
-    required_keys = {"pipeline", "threshold", "feature_columns"}
+    return pipeline
 
-    missing_keys = required_keys - artifact.keys()
 
-    if missing_keys:
-        raise ValueError(
-            f"Éléments manquants dans le modèle : {sorted(missing_keys)}"
-        )
+@pytest.fixture
+def sample_artifact(sample_pipeline):
+    """Crée un dictionnaire représentant le modèle sauvegardé."""
 
-    if not isinstance(X, pd.DataFrame):
-        raise TypeError(
-            "Les données doivent être un DataFrame pandas."
-        )
+    return {
+        "pipeline": sample_pipeline,
+        "threshold": 0.5,
+        "feature_columns": ["Time", "V1", "Amount"]
+    }
 
-    if X.empty:
-        raise ValueError(
-            "Les données à prédire sont vides."
-        )
 
-    if X.columns.duplicated().any():
-        raise ValueError(
-            "Les données contiennent des colonnes dupliquées."
-        )
+@pytest.fixture
+def sample_X(sample_data):
+    """Retourne une copie des données pour les prédictions."""
 
-    pipeline = artifact["pipeline"]
-    threshold = artifact["threshold"]
-    expected_columns = artifact["feature_columns"]
+    X, _ = sample_data
 
-    if not isinstance(expected_columns, list):
-        raise TypeError(
-            "Les colonnes attendues doivent être fournies sous forme de liste."
-        )
+    return X.copy()
 
-    if not all(isinstance(col, str) for col in expected_columns):
-        raise TypeError(
-            "Les noms des colonnes doivent être des chaînes de caractères."
-        )
 
-    if not expected_columns:
-        raise ValueError(
-            "La liste des colonnes attendues ne peut pas être vide."
-        )
+@pytest.fixture
+def saved_model(tmp_path, sample_artifact):
+    """Sauvegarde un modèle temporaire."""
 
-    if len(set(expected_columns)) != len(expected_columns):
-        raise ValueError(
-            "La liste des colonnes attendues contient des doublons."
-        )
+    filepath = tmp_path / "pipeline_test.joblib"
 
-    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
-        raise TypeError(
-            "Le seuil de décision doit être numérique."
-        )
+    joblib.dump(sample_artifact, filepath)
 
-    threshold = float(threshold)
+    return filepath
 
-    if not np.isfinite(threshold) or not 0 <= threshold <= 1:
-        raise ValueError(
-            "Le seuil de décision doit être compris entre 0 et 1."
-        )
 
-    if not callable(getattr(pipeline, "predict_proba", None)):
-        raise TypeError(
-            "Le pipeline doit posséder une méthode predict_proba."
-        )
+# ============================================================
+# 2. TESTS DE LA FONCTION load_pipeline()
+# ============================================================
 
-    missing_columns = [
-        col for col in expected_columns if col not in X.columns
-    ]
+def test_load_pipeline_success(saved_model):
+    """Vérifie le chargement correct du modèle."""
 
-    if missing_columns:
-        raise ValueError(
-            f"Colonnes absentes : {missing_columns}"
-        )
+    artifact = load_pipeline(saved_model)
 
-    extra_columns = [
-        col for col in X.columns if col not in expected_columns
-    ]
+    assert isinstance(artifact, dict)
+    assert "pipeline" in artifact
+    assert "threshold" in artifact
+    assert "feature_columns" in artifact
 
-    if extra_columns:
-        raise ValueError(
-            f"Colonnes supplémentaires : {extra_columns}"
-        )
+    assert artifact["threshold"] == 0.5
 
-    X = X.loc[:, expected_columns].copy()
 
-    try:
-        values = X.to_numpy(dtype=float)
+def test_load_pipeline_file_not_found(tmp_path):
+    """Vérifie le comportement si le fichier est absent."""
 
-    except (TypeError, ValueError) as error:
-        raise TypeError(
-            "Les variables doivent être numériques."
-        ) from error
+    filepath = tmp_path / "fichier_inexistant.joblib"
 
-    if not np.isfinite(values).all():
-        raise ValueError(
-            "Les données contiennent des valeurs non finies."
-        )
+    with pytest.raises(FileNotFoundError):
+        load_pipeline(filepath)
 
-    probabilities = pipeline.predict_proba(X)
 
-    if not isinstance(probabilities, np.ndarray):
-        raise TypeError(
-            "Le modèle doit retourner un tableau NumPy."
-        )
+def test_load_pipeline_invalid_file(tmp_path):
+    """Vérifie le comportement avec un fichier invalide."""
 
-    if (
-        probabilities.ndim != 2
-        or probabilities.shape != (len(X), 2)
-    ):
-        raise ValueError(
-            "Le modèle doit retourner deux probabilités par transaction."
-        )
+    filepath = tmp_path / "fichier_invalide.joblib"
 
-    probabilities = probabilities[:, 1]
+    filepath.write_text(
+        "contenu invalide",
+        encoding="utf-8"
+    )
 
-    if not np.isfinite(probabilities).all():
-        raise ValueError(
-            "Le modèle retourne des probabilités non finies."
-        )
+    with pytest.raises(RuntimeError):
+        load_pipeline(filepath)
 
-    if not np.all((probabilities >= 0) & (probabilities <= 1)):
-        raise ValueError(
-            "Les probabilités doivent être comprises entre 0 et 1."
-        )
 
-    predictions = (
-        probabilities >= threshold
+def test_load_pipeline_invalid_artifact(tmp_path):
+    """Vérifie que le contenu doit être un dictionnaire."""
+
+    filepath = tmp_path / "artifact_invalide.joblib"
+
+    joblib.dump(["pipeline", "threshold"], filepath)
+
+    with pytest.raises(TypeError):
+        load_pipeline(filepath)
+
+
+def test_load_pipeline_missing_keys(tmp_path, sample_pipeline):
+    """Vérifie la présence de toutes les clés obligatoires."""
+
+    artifact = {
+        "pipeline": sample_pipeline,
+        "threshold": 0.5
+    }
+
+    filepath = tmp_path / "artifact_incomplet.joblib"
+
+    joblib.dump(artifact, filepath)
+
+    with pytest.raises(ValueError, match="Éléments manquants"):
+        load_pipeline(filepath)
+
+
+def test_load_pipeline_feature_columns_not_list(
+    tmp_path,
+    sample_pipeline
+):
+    """Vérifie que les colonnes attendues doivent être une liste."""
+
+    artifact = {
+        "pipeline": sample_pipeline,
+        "threshold": 0.5,
+        "feature_columns": "Time, V1, Amount"
+    }
+
+    filepath = tmp_path / "colonnes_invalides.joblib"
+
+    joblib.dump(artifact, filepath)
+
+    with pytest.raises(TypeError):
+        load_pipeline(filepath)
+
+
+def test_load_pipeline_non_string_columns(
+    tmp_path,
+    sample_pipeline
+):
+    """Vérifie que les noms de colonnes doivent être des chaînes."""
+
+    artifact = {
+        "pipeline": sample_pipeline,
+        "threshold": 0.5,
+        "feature_columns": ["Time", 123, "Amount"]
+    }
+
+    filepath = tmp_path / "colonnes_non_string.joblib"
+
+    joblib.dump(artifact, filepath)
+
+    with pytest.raises(TypeError):
+        load_pipeline(filepath)
+
+
+def test_load_pipeline_duplicate_columns(
+    tmp_path,
+    sample_pipeline
+):
+    """Vérifie le rejet des colonnes dupliquées."""
+
+    artifact = {
+        "pipeline": sample_pipeline,
+        "threshold": 0.5,
+        "feature_columns": ["Time", "V1", "Time"]
+    }
+
+    filepath = tmp_path / "colonnes_dupliquees.joblib"
+
+    joblib.dump(artifact, filepath)
+
+    with pytest.raises(ValueError, match="doublons"):
+        load_pipeline(filepath)
+
+
+@pytest.mark.parametrize(
+    "threshold",
+    ["0.5", None, True, False, {"value": 0.5}]
+)
+def test_load_pipeline_invalid_threshold_type(
+    tmp_path,
+    sample_pipeline,
+    threshold
+):
+    """Vérifie le rejet des seuils non numériques ou booléens."""
+
+    artifact = {
+        "pipeline": sample_pipeline,
+        "threshold": threshold,
+        "feature_columns": ["Time", "V1", "Amount"]
+    }
+
+    filepath = tmp_path / "seuil_invalide.joblib"
+
+    joblib.dump(artifact, filepath)
+
+    with pytest.raises(TypeError):
+        load_pipeline(filepath)
+
+
+@pytest.mark.parametrize(
+    "threshold",
+    [-0.1, 1.1, np.nan, np.inf, -np.inf]
+)
+def test_load_pipeline_threshold_out_of_range(
+    tmp_path,
+    sample_pipeline,
+    threshold
+):
+    """Vérifie que le seuil doit être fini et compris entre 0 et 1."""
+
+    artifact = {
+        "pipeline": sample_pipeline,
+        "threshold": threshold,
+        "feature_columns": ["Time", "V1", "Amount"]
+    }
+
+    filepath = tmp_path / "seuil_hors_limites.joblib"
+
+    joblib.dump(artifact, filepath)
+
+    with pytest.raises(ValueError):
+        load_pipeline(filepath)
+
+
+def test_load_pipeline_without_predict_proba(tmp_path):
+    """Vérifie que le pipeline doit posséder predict_proba."""
+
+    artifact = {
+        "pipeline": object(),
+        "threshold": 0.5,
+        "feature_columns": ["Time", "V1", "Amount"]
+    }
+
+    filepath = tmp_path / "pipeline_sans_predict_proba.joblib"
+
+    joblib.dump(artifact, filepath)
+
+    with pytest.raises(TypeError, match="predict_proba"):
+        load_pipeline(filepath)
+
+
+# ============================================================
+# 3. TESTS DE LA FONCTION predict_transactions()
+# ============================================================
+
+def test_predict_transactions_success(sample_artifact, sample_X):
+    """Vérifie que les prédictions sont correctement réalisées."""
+
+    predictions, probabilities = predict_transactions(
+        sample_artifact,
+        sample_X
+    )
+
+    assert len(predictions) == len(sample_X)
+    assert len(probabilities) == len(sample_X)
+
+    assert set(np.unique(predictions)).issubset({0, 1})
+
+    assert np.all(np.isfinite(probabilities))
+    assert np.all((probabilities >= 0) & (probabilities <= 1))
+
+
+def test_predict_transactions_output_types(sample_artifact, sample_X):
+    """Vérifie les types des résultats."""
+
+    predictions, probabilities = predict_transactions(
+        sample_artifact,
+        sample_X
+    )
+
+    assert isinstance(predictions, np.ndarray)
+    assert isinstance(probabilities, np.ndarray)
+
+
+def test_predict_transactions_threshold_application(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie l'application du seuil de décision."""
+
+    predictions, probabilities = predict_transactions(
+        sample_artifact,
+        sample_X
+    )
+
+    expected_predictions = (
+        probabilities >= sample_artifact["threshold"]
     ).astype(int)
 
-    return predictions, probabilities
+    np.testing.assert_array_equal(
+        predictions,
+        expected_predictions
+    )
+
+
+def test_predict_transactions_reordered_columns(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie que l'ordre initial des colonnes n'est pas obligatoire."""
+
+    X_reordered = sample_X[
+        ["Amount", "Time", "V1"]
+    ]
+
+    predictions, probabilities = predict_transactions(
+        sample_artifact,
+        X_reordered
+    )
+
+    assert len(predictions) == len(sample_X)
+    assert len(probabilities) == len(sample_X)
+
+
+def test_predict_transactions_invalid_artifact(sample_X):
+    """Vérifie le rejet d'un modèle qui n'est pas un dictionnaire."""
+
+    with pytest.raises(TypeError):
+        predict_transactions(None, sample_X)
+
+
+def test_predict_transactions_missing_keys(sample_X):
+    """Vérifie les clés obligatoires du modèle."""
+
+    artifact = {
+        "pipeline": None
+    }
+
+    with pytest.raises(ValueError):
+        predict_transactions(artifact, sample_X)
+
+
+def test_predict_transactions_invalid_dataframe(sample_artifact):
+    """Vérifie que les données doivent être un DataFrame."""
+
+    with pytest.raises(TypeError):
+        predict_transactions(sample_artifact, [1, 2, 3])
+
+
+def test_predict_transactions_empty_dataframe(sample_artifact):
+    """Vérifie le rejet d'un DataFrame vide."""
+
+    X_empty = pd.DataFrame(
+        columns=["Time", "V1", "Amount"]
+    )
+
+    with pytest.raises(ValueError, match="vides"):
+        predict_transactions(sample_artifact, X_empty)
+
+
+def test_predict_transactions_duplicate_columns(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie le rejet des colonnes dupliquées."""
+
+    X_duplicate = sample_X.copy()
+
+    X_duplicate.columns = [
+        "Time",
+        "V1",
+        "Time"
+    ]
+
+    with pytest.raises(ValueError, match="dupliquées"):
+        predict_transactions(sample_artifact, X_duplicate)
+
+
+def test_predict_transactions_missing_columns(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie le rejet des colonnes manquantes."""
+
+    X_missing = sample_X.drop(columns=["V1"])
+
+    with pytest.raises(ValueError, match="Colonnes absentes"):
+        predict_transactions(sample_artifact, X_missing)
+
+
+def test_predict_transactions_extra_columns(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie le rejet des colonnes supplémentaires."""
+
+    X_extra = sample_X.copy()
+
+    X_extra["Extra"] = 100
+
+    with pytest.raises(ValueError, match="Colonnes supplémentaires"):
+        predict_transactions(sample_artifact, X_extra)
+
+
+def test_predict_transactions_non_numeric_values(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie le rejet des valeurs non numériques."""
+
+    X_invalid = sample_X.copy()
+
+    X_invalid["Amount"] = "valeur_invalide"
+
+    with pytest.raises(TypeError, match="numériques"):
+        predict_transactions(sample_artifact, X_invalid)
+
+
+@pytest.mark.parametrize(
+    "invalid_value",
+    [np.nan, np.inf, -np.inf]
+)
+def test_predict_transactions_non_finite_values(
+    sample_artifact,
+    sample_X,
+    invalid_value
+):
+    """
+    Vérifie le rejet des valeurs manquantes ou infinies.
+
+    La conversion en float est nécessaire pour permettre à Pandas
+    d'accepter les valeurs inf et -inf dans la colonne Amount.
+    """
+
+    X_invalid = sample_X.copy()
+
+    # Correction : convertir la colonne entière en float
+    X_invalid["Amount"] = X_invalid["Amount"].astype(float)
+
+    # Injection de la valeur invalide
+    X_invalid.loc[0, "Amount"] = invalid_value
+
+    # La fonction de prédiction doit rejeter ces valeurs
+    with pytest.raises(ValueError, match="non finies"):
+        predict_transactions(sample_artifact, X_invalid)
+
+
+def test_predict_transactions_invalid_threshold(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie que le seuil est contrôlé avant la prédiction."""
+
+    invalid_artifact = sample_artifact.copy()
+
+    invalid_artifact["threshold"] = 2.0
+
+    with pytest.raises(ValueError, match="compris entre 0 et 1"):
+        predict_transactions(invalid_artifact, sample_X)
+
+
+def test_predict_transactions_invalid_threshold_type(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie le type du seuil au moment de la prédiction."""
+
+    invalid_artifact = sample_artifact.copy()
+
+    invalid_artifact["threshold"] = "0.5"
+
+    with pytest.raises(TypeError, match="numérique"):
+        predict_transactions(invalid_artifact, sample_X)
+
+
+def test_predict_transactions_invalid_feature_columns(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie le format de la liste des colonnes attendues."""
+
+    invalid_artifact = sample_artifact.copy()
+
+    invalid_artifact["feature_columns"] = "Time, V1, Amount"
+
+    with pytest.raises(TypeError):
+        predict_transactions(invalid_artifact, sample_X)
+
+
+def test_predict_transactions_non_finite_probabilities(
+    sample_artifact,
+    sample_X
+):
+    """Vérifie que les probabilités produites sont valides."""
+
+    predictions, probabilities = predict_transactions(
+        sample_artifact,
+        sample_X
+    )
+
+    assert np.isfinite(probabilities).all()
+    assert (probabilities >= 0).all()
+    assert (probabilities <= 1).all()
